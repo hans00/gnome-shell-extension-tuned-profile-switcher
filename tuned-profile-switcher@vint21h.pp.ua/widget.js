@@ -2,26 +2,143 @@
 // tuned-profile-switcher@vint21h.pp.ua/widget.js
 
 
-"use strict";
+import GObject from "gi://GObject";
+import St from "gi://St";
+
+import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
+import {QuickMenuToggle, SystemIndicator} from "resource:///org/gnome/shell/ui/quickSettings.js";
+import {gettext as _} from "resource:///org/gnome/shell/extensions/extension.js";
+
+import * as Constants from "./constants.js";
+import {fallbackIconName, formatProfileName, profileIconName} from "./profiles.js";
 
 
-const PanelMenu = imports.ui.panelMenu,
-    {St, Clutter, GObject} = imports.gi,
-    PopupMenu = imports.ui.popupMenu,
-    Gettext = imports.gettext,
-    ExtensionUtils = imports.misc.extensionUtils,
-    This = ExtensionUtils.getCurrentExtension(),
-    Domain = Gettext.domain(This.imports.constants.getTextDomain),
-    _ = Domain.gettext;
+/**
+ * TuneD Profile Switcher quick settings toggle.
+ *
+ * Toggle itself switches TuneD auto profile selection,
+ * menu lists TuneD profiles.
+ */
+const TunedProfileSwitcherToggle = GObject.registerClass(
+    class TunedProfileSwitcherToggle extends QuickMenuToggle {
+
+        /**
+         * Toggle constructor.
+         *
+         * @param {TunedProxyAdapter} tuned. TuneD DBus proxy adapter instance.
+         */
+        _init (tuned) {
+
+            super._init({
+                "title": "TuneD",
+                "iconName": fallbackIconName,
+                "toggleMode": false
+            });
+            this._tuned = tuned;
+            this._profilesMenuItems = new Map();
+
+            // toggle clicked: switch auto profile selection
+            this.connect(
+                "clicked",
+                () => {
+                    if (this.checked) {
+                        this._tuned.switchProfile(this._tuned.activeProfile);
+                    } else {
+                        this._tuned.autoProfile();
+                    }
+                    this._sync();
+                }
+            );
+
+            // populate menu with profiles menu items
+            this.menu.setHeader(fallbackIconName, "TuneD");
+            this._profilesSection = new PopupMenu.PopupMenuSection();
+            this.menu.addMenuItem(this._profilesSection);
+            // profiles list can be long, so move it to the scrollable area
+            this._profilesScrollView = new St.ScrollView({
+                "style": "max-height: 20em;",
+                "hscrollbar_policy": St.PolicyType.NEVER,
+                "vscrollbar_policy": St.PolicyType.AUTOMATIC,
+                "overlay_scrollbars": true
+            });
+            this.menu.box.remove_child(this._profilesSection.actor);
+            this._profilesScrollView.child = this._profilesSection.actor;
+            this.menu.box.add_child(this._profilesScrollView);
+            for (let profile of this._tuned.profiles) {
+                let iconName = profileIconName(profile),
+                    profileMenuItem = new PopupMenu.PopupMenuItem(formatProfileName(profile));
+                // unknown performance level gets invisible icon to keep labels aligned
+                profileMenuItem.insert_child_below(
+                    new St.Icon({
+                        "style_class": "popup-menu-icon",
+                        "icon_name": iconName ?? fallbackIconName,
+                        "opacity": iconName === null ? 0 : 255
+                    }),
+                    profileMenuItem.label
+                );
+                profileMenuItem.connect(
+                    "activate",
+                    () => {
+                        this._tuned.switchProfile(profile);
+                        this._sync();
+                    }
+                );
+                this._profilesMenuItems.set(profile, profileMenuItem);
+                this._profilesSection.addMenuItem(profileMenuItem);
+            }
+
+            // connect DBus event listener
+            this._tuned.connectSignal(
+                Constants.tunedProfileChangedSignalName,
+                () => {
+                    this._sync();
+                }
+            );
+
+            this._sync();
+
+        }
+
+        /**
+         * Sync toggle and menu state with TuneD.
+         */
+        _sync () {
+            let {activeProfile, mode} = this._tuned,
+                auto = mode === Constants.tunedModeAuto,
+                iconName = profileIconName(activeProfile) ?? fallbackIconName,
+                subtitle = activeProfile === null
+                    ? _("Unknown")
+                    : formatProfileName(activeProfile);
+
+            this.visible = mode !== null;
+            this.checked = auto;
+            this.subtitle = subtitle;
+            this.iconName = iconName;
+            this.menu.setHeader(
+                iconName,
+                "TuneD",
+                auto
+                    ? `${subtitle} (${_("Auto select profile")})`
+                    : subtitle
+            );
+            for (let [profile, item] of this._profilesMenuItems) {
+                item.setOrnament(
+                    profile === activeProfile
+                        ? PopupMenu.Ornament.CHECK
+                        : PopupMenu.Ornament.NONE
+                );
+            }
+        }
+});
 
 
 /**
  * TuneD Profile Switcher widget main class.
+ *
+ * Holds TuneD quick settings toggle.
  */
-var TunedProfileSwitcherWidget = GObject.registerClass({
-        GTypeName: "TunedProfileSwitcherWidget",
-    }, class TunedProfileSwitcherWidget
-        extends PanelMenu.Button {
+export const TunedProfileSwitcherWidget = GObject.registerClass(
+    class TunedProfileSwitcherWidget extends SystemIndicator {
 
         /**
          * Widget constructor.
@@ -29,123 +146,16 @@ var TunedProfileSwitcherWidget = GObject.registerClass({
          * @param {TunedProxyAdapter} tuned. TuneD DBus proxy adapter instance.
          */
         _init (tuned) {
-
-            super._init(
-                0,
-                "TunedProfileSwitcherWidget",
-                false
-            );
-            this.profilesMenuItems = {};
-            this._tuned = tuned;
-            let {activeProfile, mode} = this._tuned;
-
-            // creating widget items
-            this.box = new St.BoxLayout();
-            this.topLabel = new St.Label({
-                "text": activeProfile === null
-                    ? _("Unknown")
-                    : activeProfile,
-                "y_expand": true,
-                "y_align": Clutter.ActorAlign.CENTER
-            });
-            for (let profile of this._tuned.profiles) {
-                let profileMenuItem = new PopupMenu.PopupMenuItem(
-                    profile,
-                    {
-                        "reactive": mode === This.imports.constants.tunedModeManual
-                    }
-                ),
-                profileMenuItemSignal = profileMenuItem.connect(
-                    "activate",
-                    () => {
-                        this._tuned.switchProfile(profile);
-                    }
-                );
-                this.profilesMenuItems[profile] = {
-                    "item": profileMenuItem,
-                    "signal": profileMenuItemSignal
-                };
-            }
-            this.autoSelectProfileMenuItem = new PopupMenu.PopupSwitchMenuItem(
-                _("Auto select profile"),
-                mode === This.imports.constants.tunedModeAuto
-            );
-            this.autoSelectProfileMenuItemSignal = this.autoSelectProfileMenuItem.connect(
-                "toggled",
-                (object, value) => {
-                    for (let profile in this.profilesMenuItems) {
-                        if (value) {
-                            this.profilesMenuItems[profile].item.reactive = false;
-                        } else {
-                            this.profilesMenuItems[profile].item.reactive = true;
-                        }
-                    }
-                    if (value) {
-                        this._tuned.autoProfile();
-                    } else {
-                        this._tuned.switchProfile(this._tuned.activeProfile);
-                    }
-                }
-            );
-
-            // assemble items by adding top label and arrow icon to layout
-            this.box.add(this.topLabel);
-            this.box.add(PopupMenu.arrowIcon(St.Side.BOTTOM));
-            // adding items to the panel button
-            this.add_child(this.box);
-            // populate menu with auto profile switcher,
-            // separator, and profiles menu items
-            this.menu.addMenuItem(this.autoSelectProfileMenuItem);
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            for (let profile in this.profilesMenuItems) {
-                this.menu.addMenuItem(this.profilesMenuItems[profile].item);
-            }
-            // connect DBus event listener
-            this._tuned.connectSignal(
-                This.imports.constants.tunedProfileChangedSignalName,
-                (
-                    proxy,
-                    nameOwner,
-                    args
-                ) => {
-                    if (this.topLabel) {  // preventing unreferenced object call
-                        this.topLabel.text = this._tuned.activeProfile;
-                    }
-                }
-            );
-
+            super._init();
+            this.quickSettingsItems.push(new TunedProfileSwitcherToggle(tuned));
         }
 
         /*
          * Widget destructor.
          */
         destroy () {
-            // auto select profile menu item
-            if (this.autoSelectProfileMenuItem) {
-                this.autoSelectProfileMenuItem.disconnect(
-                    this.autoSelectProfileMenuItemSignal
-                );
-                this.autoSelectProfileMenuItemSignal = null;
-                this.autoSelectProfileMenuItem.destroy();
-                this.autoSelectProfileMenuItem = null;
-            }
-            // profiles menu items
-            for (let profile in this.profilesMenuItems) {
-                this.profilesMenuItems[profile].item.disconnect(
-                    this.profilesMenuItems[profile].signal
-                );
-                this.profilesMenuItems[profile].item.destroy();
-            }
-            // label
-            if (this.topLabel) {
-                this.topLabel.destroy();
-                this.topLabel = null;
-            }
-            // upper level container
-            if (this.box) {
-                this.box.destroy();
-                this.box = null;
-            }
+            this.quickSettingsItems.forEach(item => item.destroy());
+            this.quickSettingsItems = [];
             super.destroy();
         }
 });

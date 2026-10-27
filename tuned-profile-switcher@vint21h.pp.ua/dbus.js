@@ -2,19 +2,18 @@
 // tuned-profile-switcher@vint21h.pp.ua/dbus.js
 
 
-"use strict";
+import Gio from "gi://Gio";
+
+import * as Constants from "./constants.js";
 
 
-const Gio = imports.gi.Gio,
-    ExtensionUtils = imports.misc.extensionUtils,
-    This = ExtensionUtils.getCurrentExtension(),
-    TunedDBusProxy = Gio.DBusProxy.makeProxyWrapper(This.imports.constants.tunedInterface);
+const TunedDBusProxy = Gio.DBusProxy.makeProxyWrapper(Constants.tunedInterface);
 
 
 /**
  * TuneD DBus proxy adapter.
  */
-var TunedProxyAdapter = class {
+export class TunedProxyAdapter {
 
     /**
      * Adapter constructor.
@@ -22,23 +21,25 @@ var TunedProxyAdapter = class {
      * Creates DBus proxy instance.
      */
     constructor () {
+        this._signals = [];
         try {
             this._tunedProxy = new TunedDBusProxy(
                 Gio.DBus.system,
-                This.imports.constants.tunedDBusName,
-                This.imports.constants.tunedDBusPath
+                Constants.tunedDBusName,
+                Constants.tunedDBusPath
             );
         } catch (error) {
             this._tunedProxy = null;
-            logError(
-                error,
-                `[${This.metadata.name}]: error. ${error}`
-            );
+            console.error(`[${Constants.extensionName}]: error. ${error}`);
         }
     }
 
     destroy() {
         if (this._tunedProxy) {
+            for (let signal of this._signals) {
+                this._tunedProxy.disconnectSignal(signal);
+            }
+            this._signals = [];
             this._tunedProxy = null;
         }
     }
@@ -52,10 +53,7 @@ var TunedProxyAdapter = class {
         try {
             return this._tunedProxy.active_profileSync().toString();
         } catch (error) {
-            logError(
-                error,
-                `[${This.metadata.name}]: error. ${error}`
-            );
+            console.error(`[${Constants.extensionName}]: error. ${error}`);
             return null;
         }
 
@@ -72,10 +70,7 @@ var TunedProxyAdapter = class {
                 .toString()
                 .split(",")[0];
         } catch (error) {
-            logError(
-                error,
-                `[${This.metadata.name}]: error. ${error}`
-            );
+            console.error(`[${Constants.extensionName}]: error. ${error}`);
             return null;
         }
     }
@@ -91,10 +86,7 @@ var TunedProxyAdapter = class {
                 .toString()
                 .split(",");
         } catch (error) {
-            logError(
-                error,
-                `[${This.metadata.name}]: error. ${error}`
-            );
+            console.error(`[${Constants.extensionName}]: error. ${error}`);
             return [];
         }
     }
@@ -106,10 +98,7 @@ var TunedProxyAdapter = class {
         try {
             this._tunedProxy.auto_profileSync();
         } catch (error) {
-            logError(
-                error,
-                `[${This.metadata.name}]: error. ${error}`
-            );
+            console.error(`[${Constants.extensionName}]: error. ${error}`);
         }
     }
 
@@ -122,10 +111,7 @@ var TunedProxyAdapter = class {
         try {
             this._tunedProxy.switch_profileSync(profile);
         } catch (error) {
-            logError(
-                error,
-                `[${This.metadata.name}]: error. ${error}`
-            );
+            console.error(`[${Constants.extensionName}]: error. ${error}`);
         }
     }
 
@@ -136,7 +122,10 @@ var TunedProxyAdapter = class {
      * @param {function} listener. Signal handler function.
      */
     connectSignal (signal, listener) {
-        this._tunedProxy.connectSignal(
+        if (!this._tunedProxy) {
+            return;
+        }
+        this._signals.push(this._tunedProxy.connectSignal(
             signal,
             (proxy, nameOwner, args) => {
 
@@ -147,6 +136,6 @@ var TunedProxyAdapter = class {
                 );
 
             }
-        );
+        ));
     }
 }

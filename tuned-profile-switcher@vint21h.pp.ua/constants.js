@@ -2,10 +2,7 @@
 // tuned-profile-switcher@vint21h.pp.ua/constants.js
 
 
-"use strict";
-
-
-var tunedInterface = `
+export const tunedInterface = `
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "https://specifications.freedesktop.org/dbus/introspect-latest.dtd">
 <node name="/Tuned">
   <interface name="com.redhat.tuned.control">
@@ -86,10 +83,11 @@ var tunedInterface = `
     </signal>
   </interface>
 </node>
-`,
-    getTextDomain = "tuned-profile-switcher",
-    tunedModeManual = "manual",
-    tunedModeAuto = "auto",
-    tunedDBusName = "com.redhat.tuned",
-    tunedDBusPath = "/Tuned",
-    tunedProfileChangedSignalName = "profile_changed";
+`;
+export const extensionName = "TuneD Profile Switcher";
+export const getTextDomain = "tuned-profile-switcher";
+export const tunedModeManual = "manual";
+export const tunedModeAuto = "auto";
+export const tunedDBusName = "com.redhat.tuned";
+export const tunedDBusPath = "/Tuned";
+export const tunedProfileChangedSignalName = "profile_changed";
