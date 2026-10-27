@@ -1,5 +1,5 @@
 // gnome-shell-extension-tuned-profile-switcher
-// tuned-profile-switcher@vint21h.pp.ua/dbus.js
+// tuned-profile-switcher@hans00.me/dbus.js
 
 
 import Gio from "gi://Gio";

@@ -10,8 +10,8 @@
     "50",
     "51"
   ],
-  "url": "https://github.com/vint21h/gnome-shell-extension-tuned-profile-switcher/",
-  "uuid": "tuned-profile-switcher@vint21h.pp.ua",
+  "url": "https://github.com/hans00/gnome-shell-extension-tuned-profile-switcher/",
+  "uuid": "tuned-profile-switcher@hans00.me",
   "version": 4,
   "gettext-domain": "tuned-profile-switcher"
 }

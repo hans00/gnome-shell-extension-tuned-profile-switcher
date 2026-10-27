@@ -1,5 +1,5 @@
 // gnome-shell-extension-tuned-profile-switcher
-// tuned-profile-switcher@vint21h.pp.ua/widget.js
+// tuned-profile-switcher@hans00.me/widget.js
 
 
 import GObject from "gi://GObject";

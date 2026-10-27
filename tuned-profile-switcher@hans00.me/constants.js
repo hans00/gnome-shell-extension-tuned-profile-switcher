@@ -1,5 +1,5 @@
 // gnome-shell-extension-tuned-profile-switcher
-// tuned-profile-switcher@vint21h.pp.ua/constants.js
+// tuned-profile-switcher@hans00.me/constants.js
 
 
 export const tunedInterface = `

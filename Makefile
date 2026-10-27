@@ -4,7 +4,7 @@
 
 .ONESHELL:
 PHONY: check compilemessages build help
-NAME ?= tuned-profile-switcher@vint21h.pp.ua
+NAME ?= tuned-profile-switcher@hans00.me
 GETTEXT_DOMAIN ?= tuned-profile-switcher
 
 

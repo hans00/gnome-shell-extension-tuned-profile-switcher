@@ -1,5 +1,5 @@
 // gnome-shell-extension-tuned-profile-switcher
-// tuned-profile-switcher@vint21h.pp.ua/extension.js
+// tuned-profile-switcher@hans00.me/extension.js
 
 
 import * as Main from "resource:///org/gnome/shell/ui/main.js";

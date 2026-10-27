@@ -1,5 +1,5 @@
 // gnome-shell-extension-tuned-profile-switcher
-// tuned-profile-switcher@vint21h.pp.ua/profiles.js
+// tuned-profile-switcher@hans00.me/profiles.js
 
 
 export const fallbackIconName = "gnome-power-manager-symbolic";
